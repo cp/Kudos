@@ -3,7 +3,7 @@ require 'feedzirra'
 require 'open-uri'
 require 'grape'
 require 'logger'
-require 'dali'
+require 'dalli'
 require 'memcachier'
 
 $logger = Logger.new(STDOUT)
