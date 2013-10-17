@@ -11,6 +11,7 @@ $logger = Logger.new(STDOUT)
 module KudosHelper
 
   def cache
+    return unless ENV['SHOULD_CACHE']
     Dalli::Client.new(ENV["MEMCACHIER_SERVERS"].split(","),
                     {username: ENV["MEMCACHIER_USERNAME"],
                      password: ENV["MEMCACHIER_PASSWORD"],
@@ -24,19 +25,25 @@ module KudosHelper
     Nokogiri::HTML(open(entry.url)).search("figure div.num")[0] ? true : false
   end
 
-  def cache_and_get(url)
-    if posts = cache.get(url)
+  def get_and_cache(url)
+    if ENV['SHOULD_CACHE'] && posts = cache.get(url)
       posts
       $logger.info "Read #{url} from cache."
     else
-      posts = Array.new
-      feed.entries.each do |post|
-        count = Nokogiri::HTML(open(post.url)).search("figure div.num")[0].inner_html
-        posts << { title: post.title, url: post.url, kudos: count }
+      feed = Feedzirra::Feed.fetch_and_parse(url)
+      if is_svbtle?(feed.entries.first)
+        posts = Array.new
+        feed.entries.each do |post|
+          count = Nokogiri::HTML(open(post.url)).search("figure div.num")[0].inner_html
+          posts << { title: post.title, url: post.url, kudos: count }
+        end
+        cache.set(url, posts) if ENV['SHOULD_CACHE']
+        $logger.info "Cached #{url}"
+        posts
+      else
+        $logger.info("#{params[:url]} isn't a svbtle blog.")
+        "Doesn't appear to be a Svbtle blog."
       end
-      cache.set(url, posts)
-      $logger.info "Cached #{url}"
-      posts
     end
   end
 
@@ -52,16 +59,8 @@ class Kudos < Grape::API
   get :blog do
      
     feed_url = "http://#{params[:url]}/feed"
-    feed = Feedzirra::Feed.fetch_and_parse(feed_url)
-
-    if is_svbtle?(feed.entries.first)
-      posts = cache_and_get(feed_url)
-      present posts
-    else
-      $logger.info("#{params[:url]} isn't a svbtle blog.")
-      status 400
-      "Doesn't appear to be a Svbtle blog."
-    end
+    resp = get_and_cache(feed_url)
+    present resp
 
   end
 
