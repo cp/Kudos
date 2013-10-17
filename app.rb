@@ -11,7 +11,13 @@ $logger = Logger.new(STDOUT)
 module KudosHelper
 
   def cache
-    Dalli::Client.new(namespace: 'kudos', compress: true, expires_in: 180)
+    Dalli::Client.new(ENV["MEMCACHIER_SERVERS"].split(","),
+                    {:username: ENV["MEMCACHIER_USERNAME"],
+                     :password: ENV["MEMCACHIER_PASSWORD"],
+                     namespace: 'kudos',
+                     compress: true,
+                     expires_in: 180
+                    })
   end
 
   def is_svbtle?(entry)
