@@ -27,8 +27,8 @@ module KudosHelper
 
   def get_and_cache(url)
     if ENV['SHOULD_CACHE'] && posts = cache.get(url)
-      posts
       $logger.info "Read #{url} from cache."
+      posts
     else
       feed = Feedzirra::Feed.fetch_and_parse(url)
       if is_svbtle?(feed.entries.first)
